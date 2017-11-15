@@ -6,7 +6,7 @@ import pandas as pd
 d_lsst = 8.4  #diameter of aperture (LSST)
 ref_lam = 700  #reference wavelength
 Z_N_max = 15  #highest Zernike order to generate (naming starts at 2)
-N = 10000  #number of donut-wavefront pairs to generate
+N = 1000  #number of donut-wavefront pairs to generate
 
 #df = pd.DataFrame(columns=['psf','wavefront','aberrations'])
 dfList = []
