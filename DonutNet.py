@@ -10,43 +10,43 @@ def parse_args():
                                      'structure/chemical mapping data as a function of seq')
     parser.add_argument('-f', '--filename', help='name of input file')
     parser.add_argument('-resdir', '--resultdir', help='location of results')
-    parser.add_argument('-d', '--deconv', default=True, type=bool,help = 'deconv layers')
+    parser.add_argument('-d', '--deconv',default=0, type=int,help = 'deconv layers')
     parser.add_argument('-r', '--restore', default=None, help='restore model parameters')
     parser.add_argument('-lr', '--learningrate', type=float,default=1e-4, help='learning rate')
     parser.add_argument('-i', '--iters', default=10000, type=int, help='iterations')
-    parser.add_argument('-s','--save', default=False, type=bool,help='save parameters')
+    parser.add_argument('-s','--save', default=0, type=int,help='save parameters')
     parser.add_argument('-a','--activation',default=None,type=str)
+    parser.add_argument('-m','--mask', default=0, type=int)
     return parser.parse_args()
 
 
 args = parse_args()
-
-deconv = args.deconv
+deconv = bool(args.deconv)
 restore = args.restore
 learning_rate = args.learningrate
 filename = args.filename
 iters = args.iters
 Ntest = 100
 batch_size = 50
-save = args.save
+save = bool(args.save)
 activation = args.activation
 results_dir = args.resultdir
-
+mask = bool(args.mask)
 # set kernel parameters (size)
 if not deconv:
     w_shapes = [ [6, 6, 1, 96], \
-             [6, 6, 96, 96], \
-             [6, 6, 96, 96], \
-             [6, 6, 96, 96], \
-             [6, 6, 96, 96], \
-             [6, 6, 96, 96], \
-             [6, 6, 96, 96], \
-             [6, 6, 96, 96], \
-             [6, 6, 96, 96], \
-             [6, 6, 96, 96], \
-             [6, 6, 96, 96], \
-             [6, 6, 96, 48], \
-             [3, 3, 48, 1] ]
+             [6, 6, 192, 96], \
+             [6, 6, 192, 96], \
+             [6, 6, 192, 96], \
+             [6, 6, 192, 96], \
+             [6, 6, 192, 96], \
+             [6, 6, 192, 96], \
+             [6, 6, 192, 96], \
+             [6, 6, 192, 96], \
+             [6, 6, 192, 96], \
+             [6, 6, 192, 96], \
+             [6, 6, 192, 48], \
+             [3, 3, 96, 1] ]
 
     b_shapes = [ [96], \
              [96], \
@@ -112,13 +112,15 @@ def main():
       data = pd.read_pickle(filename)
       #data = data.head(500)
 
-      print 'building cnn... {} layers, learning rate = {}, {} iters'.format(len(w_shapes),learning_rate,iters)
-      
       if not deconv:
+          print 'building all convolutional cnn... {} layers, learning rate = {}, {} iters'.format(len(w_shapes),learning_rate,iters)
+
           name = '%s_conv_%dlayer_%.2e' % (os.path.splitext(os.path.basename(filename))[0],len(b_shapes), learning_rate)
       else:
+          print 'building cnn with deconvolution... {} layers, learning rate = {}, {} iters'.format(len(w_shapes),learning_rate,iters)
+
           name = '%s_deconv_%dlayer_%.2e' % (os.path.splitext(os.path.basename(filename))[0],len(b_shapes), learning_rate)
-      model = CNN(w_shapes, b_shapes, name, learning_rate,deconv,batch_size,activation)
+      model = CNN(w_shapes, b_shapes, name, learning_rate, deconv, batch_size, activation, mask)
 
       if restore is not None:
             print 'restoring model parameters from file...'

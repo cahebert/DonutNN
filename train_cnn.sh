@@ -7,7 +7,7 @@
 #SBATCH --gres gpu:1
 #SBATCH --mail-user=chebert@stanford.edu
 #SBATCH --mail-type=END
-#SBATCH --output=dn_noactiv_conv_7l_lr3.out
+#SBATCH --output=dn_noactiv_conv_lr3.out
 
 module load python/2.7.5
 module load tensorflow
@@ -15,12 +15,13 @@ module load tensorflow
 basedir=/home/chebert/DonutNN/
 scratchdir=/scratch/users/chebert
 
-deconv=None
+deconv=0
 ##restore=None
 learningrate=.001
 iters=5000
-save=True
+save=1
 activation=None
+mask=1
 
 command="python $basedir/DonutNet.py -f $scratchdir/simulatedData.p -resdir $basedir/results/ -d $deconv -lr $learningrate -i $iters -a $activation -s $save"
 

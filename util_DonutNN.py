@@ -16,12 +16,12 @@ def bias_variable(shape, name='biases'):
     return tf.Variable(initial)
 
 def conv2d(x, W, strides=[1, 1, 1, 1]):
-    # returns a convolution of input x with weight matrix W (?) using stride (default 1)
+    # returns a convolution of input x with weight matrix W using stride (default 1)
     padded_x = tf.pad(x, [[0, 0], [1, 1], [1, 1], [0, 0]])
     return tf.nn.conv2d(padded_x, W, strides=strides, padding='VALID', name='convolution')
 
 def add_conv_layer(w_shape, b_shape, x_input,name,strides=[1,1,1,1]):
-    # returns a ReLUd convolution layer using inputs to define the weights
+    # returns a convolution layer using inputs to define the weights
     weight = weight_variable(w_shape)
     bias = bias_variable(b_shape)
     return weight, conv2d(x_input, weight, strides) + bias
@@ -43,8 +43,8 @@ def batch_norm(x,depth):
 
     return tf.nn.batch_normalization(x, mean, variance, beta, gamma, variance_epsilon=1e-4, name='batchnorm')
 
-def set_up_n_layers(w_shapes, b_shapes, x_input, n,activation=None):
-    ## returns weights of final layer
+def set_up_n_layers(w_shapes, b_shapes, x_input, n):
+    ## returns weights and layers of NN
     weights = []
     layers = []
     weight, conv = add_conv_layer(w_shapes[0], b_shapes[0], x_input, name='conv1')
@@ -56,29 +56,25 @@ def set_up_n_layers(w_shapes, b_shapes, x_input, n,activation=None):
         bn_conv = tf.nn.crelu( batch_norm(conv, b_shapes[i][0]) )
         weights.append(weight)
         layers.append(bn_conv)
-    weight, conv = add_conv_layer(w_shapes[n], b_shapes[n], bn_conv, name='conv{}'.format(n))
-    if activation=='tanh':
-        bn_conv = 4*tf.nn.tanh( batch_norm(conv, b_shapes[n][0]) )
-    else:
-        bn_conv = batch_norm(conv,b_shapes[n][0])
+    weight, conv = add_conv_layer(w_shapes[-1], b_shapes[-1], bn_conv, name='conv{}'.format(n))
+    bn_conv = batch_norm(conv,b_shapes[-1][0])
     weights.append(weight)
     layers.append(bn_conv)
     return weights, layers
 
 
-
 def deconv2d(x, W, output_shape, strides=[1, 1, 1, 1]):
-    #padded_x = tf.pad(x, [[0, 0], [1, 1], [1, 1], [0, 0]])
+    ## returns deconv layer
     return tf.nn.conv2d_transpose(x, W, output_shape, strides=strides, padding='VALID',name='deconv') 
 
 def add_deconv_layer(w_shape, b_shape, output_shape, x_input, name, strides=[1,1,1,1]):
-    # returns a ReLUd convolution layer using inputs to define the weights
+    # returns a deconvolution layer with output_shape using inputs to define the weights
     weight = weight_variable(w_shape)
     bias = bias_variable(b_shape)
     return weight, deconv2d(x_input, weight, output_shape, strides=strides) + bias
 
-def set_up_n_layers_with_deconv(w_shapes, b_shapes, x_input, n, activation=None):
-    ## returns weights of final layer
+def set_up_n_layers_with_deconv(w_shapes, b_shapes, x_input, n):
+    ## returns weights and layers
     weights = []
     layers = []
     strds = [[1,2,2,1],[1,1,1,1],[1,2,2,1]]
@@ -109,20 +105,17 @@ def set_up_n_layers_with_deconv(w_shapes, b_shapes, x_input, n, activation=None)
 
     weight, conv = add_conv_layer(w_shapes[6], b_shapes[6], bn_conv, name='conv6')
     weights.append(weight)
-    if activation=='tanh':
-        bn_conv =  4*tf.nn.tanh(batch_norm(conv, b_shapes[6][0]))
-    else:
-        bn_conv = batch_norm(conv,b_shapes[6][0])
+    bn_conv = batch_norm(conv,b_shapes[6][0])
     layers.append(bn_conv)
 
     return weights, layers
 
 class CNN():
-    def __init__(self, w_shapes, b_shapes, name='', learning_rate=1e-4, deconv=False,batch_size=50,activation=None):
+    def __init__(self, w_shapes, b_shapes, name='', learning_rate=1e-4, deconv=False, batch_size=50, mask=True):
         self.name = name + '_' + ''.join(random.choice(string.ascii_lowercase) for _ in range(6))
 
         self.sess = tf.Session()
-        self.build(w_shapes, b_shapes, learning_rate, deconv, batch_size,activation)
+        self.build(w_shapes, b_shapes, learning_rate, deconv, batch_size, mask)
         self.sess.run(tf.global_variables_initializer())
         self.init_writer()
         self.i = 0
@@ -131,40 +124,41 @@ class CNN():
         self.merged = tf.summary.merge_all()
         self.writer = tf.summary.FileWriter('log_simple_stats', self.sess.graph)
 
-    def build(self, w_shapes, b_shapes, learning_rate, deconv,batch_size,activation):
+    def build(self, w_shapes, b_shapes, learning_rate, deconv, batch_size, activation, mask):
 
         self.donut = tf.placeholder(tf.float32,
                                   shape=[None, 100, 100, 1],name='donut')
         self.wf_truth = tf.placeholder(tf.float32, shape=[None, 64, 64, 1], name='wavefront')
 
         if not deconv:
-            weights, layers = set_up_n_layers(w_shapes, b_shapes, self.donut, n=len(b_shapes),activation=activation)
+            weights, layers = set_up_n_layers(w_shapes, b_shapes, self.donut, n=len(b_shapes))
         else:
-            weights, layers = set_up_n_layers_with_deconv(w_shapes, b_shapes, self.donut, n=len(b_shapes),activation=activation)
+            weights, layers = set_up_n_layers_with_deconv(w_shapes, b_shapes, self.donut, n=len(b_shapes))
         
         self.weight = weights
         self.layers = layers
-        added_crelu_outputs = layers[-1]#[:,:,:,0] + layers[-1][:,:,:,1]
-        self.wavefront_pred = tf.reshape(added_crelu_outputs,[-1,64,64,1])
+        final_output = layers[-1]
+        self.wavefront_pred = tf.reshape(final_output,[-1,64,64,1])
 
-        nx, ny = 64,64
-        x = np.linspace(-nx/2,nx/2,nx)
-        y = np.linspace(-nx/2,nx/2,nx)
-        X,Y = np.meshgrid(x,y)
+        if mask:
+            nx, ny = 64,64
+            x = np.linspace(-nx/2,nx/2,nx)
+            y = np.linspace(-nx/2,nx/2,nx)
+            X,Y = np.meshgrid(x,y)
 
-        R = np.hypot(X,Y)
-        annulus = ( (R<nx/2) & (R>nx*.3 ) )       
+            R = np.hypot(X,Y)
+            annulus = ( (R<nx/2) & (R>nx*.3 ) )       
  
-        mask = tf.convert_to_tensor(annulus, dtype=bool)
-        mask_t = tf.stack([mask]*batch_size)
+            mask = tf.convert_to_tensor(annulus, dtype=bool)
+            mask_t = tf.stack([mask]*batch_size)
 
-        diff = tf.boolean_mask(self.wavefront_pred,mask_t) - tf.boolean_mask(self.wf_truth,mask_t)
+            diff = tf.boolean_mask(self.wavefront_pred,mask_t) - tf.boolean_mask(self.wf_truth,mask_t)
+        else:
+            diff = self.wavefront_pred-self.wf_truth
 
         self.loss = tf.nn.l2_loss( diff )
         self.train_summ = tf.summary.scalar("L2 loss", self.loss)
-
         self.train_step = tf.train.AdamOptimizer(learning_rate).minimize(self.loss)
-        #self.train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(self.loss)
 
 
     def train(self, data, iters=10000, batch_size=100, test=False):
@@ -220,7 +214,7 @@ class CNN():
             for i in range(nchunks):
                 j, k = i * max_chunk, (i+1) * max_chunk
                 pred = self.wavefront_pred.eval(session=self.sess, feed_dict={self.donut: donut[j:k]})
-                chunk_wfs[j:k,:,:,:] = pred #tf.reshape(pred,[-1,64,64])
+                chunk_wfs[j:k,:,:,:] = pred 
             return chunk_wfs
 
     def restore(self, filename):
