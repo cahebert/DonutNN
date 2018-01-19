@@ -20,10 +20,10 @@ def conv2d(x, W, strides=[1, 1, 1, 1]):
     padded_x = tf.pad(x, [[0, 0], [1, 1], [1, 1], [0, 0]])
     return tf.nn.conv2d(padded_x, W, strides=strides, padding='VALID', name='convolution')
 
-def add_conv_layer(w_shape, b_shape, x_input,name,strides=[1,1,1,1]):
+def add_conv_layer(w_shape, x_input,name,strides=[1,1,1,1]):
     # returns a convolution layer using inputs to define the weights
     weight = weight_variable(w_shape)
-    bias = bias_variable(b_shape)
+    bias = bias_variable([w_shape[-1]])
     return weight, conv2d(x_input, weight, strides) + bias
 
 def batch_norm(x,depth):
@@ -43,79 +43,119 @@ def batch_norm(x,depth):
 
     return tf.nn.batch_normalization(x, mean, variance, beta, gamma, variance_epsilon=1e-4, name='batchnorm')
 
-def set_up_n_layers(w_shapes, b_shapes, x_input, n):
+#def set_up_n_layers(w_shapes, x_input, n):
     ## returns weights and layers of NN
-    weights = []
-    layers = []
-    weight, conv = add_conv_layer(w_shapes[0], b_shapes[0], x_input, name='conv1')
-    bn_conv = tf.nn.crelu ( batch_norm(conv, b_shapes[0][0]) )
-    weights.append(weight)
-    layers.append(bn_conv)
-    for i in range(1,n-1):
-        weight, conv = add_conv_layer(w_shapes[i], b_shapes[i], bn_conv, name='conv{}'.format(i+1))
-        bn_conv = tf.nn.crelu( batch_norm(conv, b_shapes[i][0]) )
-        weights.append(weight)
-        layers.append(bn_conv)
-    weight, conv = add_conv_layer(w_shapes[-1], b_shapes[-1], bn_conv, name='conv{}'.format(n))
-    bn_conv = batch_norm(conv,b_shapes[-1][0])
-    weights.append(weight)
-    layers.append(bn_conv)
-    return weights, layers
+#    weights = []
+#    layers = []
+#    weight, conv = add_conv_layer(w_shapes[0], x_input, name='conv1')
+#    bn_conv = tf.nn.crelu ( batch_norm(conv, w_shapes[0][-1]) )
+#    weights.append(weight)
+#    layers.append(bn_conv)
+#    for i in range(1,n-1):
+#        weight, conv = add_conv_layer(w_shapes[i], bn_conv, name='conv{}'.format(i+1))
+#        bn_conv = tf.nn.crelu( batch_norm(conv, w_shapes[i][-1]) )
+#        weights.append(weight)
+#        layers.append(bn_conv)
+#    weight, conv = add_conv_layer(w_shapes[-1], bn_conv, name='conv{}'.format(n))
+#    bn_conv = batch_norm(conv,w_shapes[-1][-1])
+#    weights.append(weight)
+#    layers.append(bn_conv)
+#    return weights, layers
 
 
 def deconv2d(x, W, output_shape, strides=[1, 1, 1, 1]):
     ## returns deconv layer
     return tf.nn.conv2d_transpose(x, W, output_shape, strides=strides, padding='VALID',name='deconv') 
 
-def add_deconv_layer(w_shape, b_shape, output_shape, x_input, name, strides=[1,1,1,1]):
+def add_deconv_layer(w_shape, output_shape, x_input, name, strides=[1,1,1,1]):
     # returns a deconvolution layer with output_shape using inputs to define the weights
     weight = weight_variable(w_shape)
-    bias = bias_variable(b_shape)
+    bias = bias_variable([w_shape[2]])
     return weight, deconv2d(x_input, weight, output_shape, strides=strides) + bias
 
-def set_up_n_layers_with_deconv(w_shapes, b_shapes, x_input, n):
-    ## returns weights and layers
+#def set_up_n_layers_with_deconv(w_shapes, x_input, n):
+#    ## returns weights and layers
+#    weights = []
+#    layers = []
+#    strds = [[1,2,2,1],[1,1,1,1],[1,2,2,1]]
+#
+#    weight, conv = add_conv_layer(w_shapes[0], x_input, name='conv1',strides=strds[0])
+#    bn_conv = tf.nn.crelu( batch_norm(conv, w_shapes[0][-1]) )
+#    weights.append(weight)
+#    layers.append(bn_conv)
+#
+#    for i in range(1,3):
+#        weight, conv = add_conv_layer(w_shapes[i], bn_conv, name='conv{}'.format(i),strides=strds[i])
+#        bn_conv = tf.nn.crelu( batch_norm(conv, w_shapes[i][-1]) )
+#        weights.append(weight)
+#        layers.append(bn_conv)
+#
+#    batch_size = tf.shape(x_input)[0]
+#    output_shapes = [[batch_size, 26, 26, 96], [batch_size, 31, 31, 96], [batch_size, 64, 64, 48]]
+#    for i in range(3,5):
+#        weight, deconv = add_deconv_layer(w_shapes[i], output_shapes[i-3], bn_conv, name='deconv{}'.format(i))
+#        bn_conv = tf.nn.crelu( batch_norm(deconv, w_shapes[i][2]) )
+#        weights.append(weight)
+#        layers.append(bn_conv)
+#
+#    weight, deconv = add_deconv_layer(w_shapes[5], output_shapes[2], bn_conv, name='deconv5', strides=[1,2,2,1])
+#    bn_conv = tf.nn.crelu( batch_norm(deconv, w_shapes[5][2]) )
+#    weights.append(weight)    
+#    layers.append(bn_conv)
+#
+#    weight, conv = add_conv_layer(w_shapes[6], bn_conv, name='conv6')
+#    weights.append(weight)
+#    bn_conv = batch_norm(conv,w_shapes[6][-1])
+#    layers.append(bn_conv)
+#
+#    return weights, layers
+
+def setup_layers(x_input, layers):
+    n = len(layers)
+    n_img = 100
     weights = []
-    layers = []
-    strds = [[1,2,2,1],[1,1,1,1],[1,2,2,1]]
+    layers_out = []
 
-    weight, conv = add_conv_layer(w_shapes[0], b_shapes[0], x_input, name='conv1',strides=strds[0])
-    bn_conv = tf.nn.crelu( batch_norm(conv, b_shapes[0][0]) )
-    weights.append(weight)
-    layers.append(bn_conv)
+    for i in range(n):
+        w, s, l = layers[i]
+        if i == 0:
+            weight, conv = add_conv_layer(w, x_input, name='conv1',strides=[1,s,s,1])
+            bn_s = w[-1]
+            n_img = (n_img - w[1] + 2.)/s + 1
+            assert n_img%int(n_img)==0, 'parameters return non-int image shape'
+        else:
+            w[2] = 2*w[2]
+            if l == 'c':
+                weight, conv = add_conv_layer(w, bn_conv, name='conv{}'.format(i), strides=[1,s,s,1])
+                bn_s = w[-1]
+                n_img = (n_img - w[1] + 2.)/s + 1
+                assert n_img%int(n_img)==0, 'parameters return non-int image shape'
 
-    for i in range(1,3):
-        weight, conv = add_conv_layer(w_shapes[i], b_shapes[i], bn_conv, name='conv{}'.format(i),strides=strds[i])
-        bn_conv = tf.nn.crelu( batch_norm(conv, b_shapes[i][0]) )
+            elif l == 'd':
+                temp = w[-1]
+                w[-1] = w[2]
+                w[2] = temp
+
+                n_img = s*(n_img-1) + w[1]
+                assert n_img%int(n_img)==0, 'parameters return non-int image shape'
+                batchsize = tf.shape(x_input)[0]
+                output_shape = tf.pack([batchsize, int(n_img), int(n_img), w[2]])
+                weight, conv = add_deconv_layer(w, output_shape, bn_conv, name='deconv{}'.format(i), strides=[1,s,s,1])
+                bn_s = w[2]
+        if i == n-1:
+            bn_conv = batch_norm(conv, bn_s)
+        else:
+            bn_conv = tf.nn.crelu( batch_norm(conv, bn_s) )
         weights.append(weight)
-        layers.append(bn_conv)
-
-    batch_size = tf.shape(x_input)[0]
-    output_shapes = [[batch_size, 26, 26, 96], [batch_size, 31, 31, 96], [batch_size, 64, 64, 48]]
-    for i in range(3,5):
-        weight, deconv = add_deconv_layer(w_shapes[i], b_shapes[i], output_shapes[i-3], bn_conv, name='deconv{}'.format(i))
-        bn_conv = tf.nn.crelu( batch_norm(deconv, b_shapes[i][0]) )
-        weights.append(weight)
-        layers.append(bn_conv)
-
-    weight, deconv = add_deconv_layer(w_shapes[5], b_shapes[5], output_shapes[2], bn_conv, name='deconv5', strides=[1,2,2,1])
-    bn_conv = tf.nn.crelu( batch_norm(deconv, b_shapes[5][0]) )
-    weights.append(weight)    
-    layers.append(bn_conv)
-
-    weight, conv = add_conv_layer(w_shapes[6], b_shapes[6], bn_conv, name='conv6')
-    weights.append(weight)
-    bn_conv = batch_norm(conv,b_shapes[6][0])
-    layers.append(bn_conv)
-
-    return weights, layers
+        layers_out.append(bn_conv)
+    return weights, layers_out
 
 class CNN():
-    def __init__(self, w_shapes, b_shapes, name='', learning_rate=1e-4, deconv=False, batch_size=50, mask=True):
+    def __init__(self, layers, name='', learning_rate=1e-4, batch_size=100, mask=True, inputs=2):
         self.name = name + '_' + ''.join(random.choice(string.ascii_lowercase) for _ in range(6))
 
         self.sess = tf.Session()
-        self.build(w_shapes, b_shapes, learning_rate, deconv, batch_size, mask)
+        self.build(layers, learning_rate, mask, inputs)
         self.sess.run(tf.global_variables_initializer())
         self.init_writer()
         self.i = 0
@@ -124,20 +164,16 @@ class CNN():
         self.merged = tf.summary.merge_all()
         self.writer = tf.summary.FileWriter('log_simple_stats', self.sess.graph)
 
-    def build(self, w_shapes, b_shapes, learning_rate, deconv, batch_size, activation, mask):
-
+    def build(self, layers, learning_rate, mask, inputs):
         self.donut = tf.placeholder(tf.float32,
-                                  shape=[None, 100, 100, 1],name='donut')
+                                  shape=[None, 100, 100, inputs],name='donut')
         self.wf_truth = tf.placeholder(tf.float32, shape=[None, 64, 64, 1], name='wavefront')
 
-        if not deconv:
-            weights, layers = set_up_n_layers(w_shapes, b_shapes, self.donut, n=len(b_shapes))
-        else:
-            weights, layers = set_up_n_layers_with_deconv(w_shapes, b_shapes, self.donut, n=len(b_shapes))
-        
+        weights, layers_out = setup_layers(self.donut, layers)
+
         self.weight = weights
-        self.layers = layers
-        final_output = layers[-1]
+        self.layers = layers_out
+        final_output = layers_out[-1]
         self.wavefront_pred = tf.reshape(final_output,[-1,64,64,1])
 
         if mask:
@@ -161,12 +197,23 @@ class CNN():
         self.train_step = tf.train.AdamOptimizer(learning_rate).minimize(self.loss)
 
 
-    def train(self, data, iters=10000, batch_size=100, test=False):
-        all_donuts = data['psf']
-        all_wf = data['wavefront']
+    def train(self, data, iters=10000, batch_size=100, test=False,inputs=2):
+        if inputs==2:
+            all_donuts_x = data['psf']
+            all_donuts_i = data['intra_psf']
+            all_wf = data['wavefront']
 
-        all_donuts = np.vstack([np.expand_dims(x, 0) for x in all_donuts.values])
-        all_donuts = np.expand_dims(all_donuts,-1) 
+            all_donuts_x = np.vstack([np.expand_dims(x, 0) for x in all_donuts_x.values])
+            #all_donuts_x = np.expand_dims(all_donuts_x,-1) 
+            all_donuts_i = np.vstack([np.expand_dims(x, 0) for x in all_donuts_i.values])
+            #all_donuts_i = np.expand_dims(all_donuts_i,-1)
+            all_donuts = np.stack((all_donuts_x,all_donuts_i),axis=-1)
+            print np.shape(all_donuts)        
+        else:
+            all_donuts = data['psf']
+            all_donuts = np.vstack([np.expand_dims(x, 0) for x in all_donuts.values])
+            all_donuts = np.expand_dims(all_donuts,-1)
+
         all_wf = np.vstack([np.expand_dims(x, 0) for x in all_wf.values])
         all_wf = np.expand_dims(all_wf,-1) 
 
