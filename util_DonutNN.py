@@ -43,26 +43,6 @@ def batch_norm(x,depth):
 
     return tf.nn.batch_normalization(x, mean, variance, beta, gamma, variance_epsilon=1e-4, name='batchnorm')
 
-#def set_up_n_layers(w_shapes, x_input, n):
-    ## returns weights and layers of NN
-#    weights = []
-#    layers = []
-#    weight, conv = add_conv_layer(w_shapes[0], x_input, name='conv1')
-#    bn_conv = tf.nn.crelu ( batch_norm(conv, w_shapes[0][-1]) )
-#    weights.append(weight)
-#    layers.append(bn_conv)
-#    for i in range(1,n-1):
-#        weight, conv = add_conv_layer(w_shapes[i], bn_conv, name='conv{}'.format(i+1))
-#        bn_conv = tf.nn.crelu( batch_norm(conv, w_shapes[i][-1]) )
-#        weights.append(weight)
-#        layers.append(bn_conv)
-#    weight, conv = add_conv_layer(w_shapes[-1], bn_conv, name='conv{}'.format(n))
-#    bn_conv = batch_norm(conv,w_shapes[-1][-1])
-#    weights.append(weight)
-#    layers.append(bn_conv)
-#    return weights, layers
-
-
 def deconv2d(x, W, output_shape, strides=[1, 1, 1, 1]):
     ## returns deconv layer
     return tf.nn.conv2d_transpose(x, W, output_shape, strides=strides, padding='VALID',name='deconv') 
@@ -72,43 +52,6 @@ def add_deconv_layer(w_shape, output_shape, x_input, name, strides=[1,1,1,1]):
     weight = weight_variable(w_shape)
     bias = bias_variable([w_shape[2]])
     return weight, deconv2d(x_input, weight, output_shape, strides=strides) + bias
-
-#def set_up_n_layers_with_deconv(w_shapes, x_input, n):
-#    ## returns weights and layers
-#    weights = []
-#    layers = []
-#    strds = [[1,2,2,1],[1,1,1,1],[1,2,2,1]]
-#
-#    weight, conv = add_conv_layer(w_shapes[0], x_input, name='conv1',strides=strds[0])
-#    bn_conv = tf.nn.crelu( batch_norm(conv, w_shapes[0][-1]) )
-#    weights.append(weight)
-#    layers.append(bn_conv)
-#
-#    for i in range(1,3):
-#        weight, conv = add_conv_layer(w_shapes[i], bn_conv, name='conv{}'.format(i),strides=strds[i])
-#        bn_conv = tf.nn.crelu( batch_norm(conv, w_shapes[i][-1]) )
-#        weights.append(weight)
-#        layers.append(bn_conv)
-#
-#    batch_size = tf.shape(x_input)[0]
-#    output_shapes = [[batch_size, 26, 26, 96], [batch_size, 31, 31, 96], [batch_size, 64, 64, 48]]
-#    for i in range(3,5):
-#        weight, deconv = add_deconv_layer(w_shapes[i], output_shapes[i-3], bn_conv, name='deconv{}'.format(i))
-#        bn_conv = tf.nn.crelu( batch_norm(deconv, w_shapes[i][2]) )
-#        weights.append(weight)
-#        layers.append(bn_conv)
-#
-#    weight, deconv = add_deconv_layer(w_shapes[5], output_shapes[2], bn_conv, name='deconv5', strides=[1,2,2,1])
-#    bn_conv = tf.nn.crelu( batch_norm(deconv, w_shapes[5][2]) )
-#    weights.append(weight)    
-#    layers.append(bn_conv)
-#
-#    weight, conv = add_conv_layer(w_shapes[6], bn_conv, name='conv6')
-#    weights.append(weight)
-#    bn_conv = batch_norm(conv,w_shapes[6][-1])
-#    layers.append(bn_conv)
-#
-#    return weights, layers
 
 def setup_layers(x_input, layers):
     n = len(layers)
@@ -204,9 +147,7 @@ class CNN():
             all_wf = data['wavefront']
 
             all_donuts_x = np.vstack([np.expand_dims(x, 0) for x in all_donuts_x.values])
-            #all_donuts_x = np.expand_dims(all_donuts_x,-1) 
             all_donuts_i = np.vstack([np.expand_dims(x, 0) for x in all_donuts_i.values])
-            #all_donuts_i = np.expand_dims(all_donuts_i,-1)
             all_donuts = np.stack((all_donuts_x,all_donuts_i),axis=-1)
             print np.shape(all_donuts)        
         else:
@@ -248,7 +189,6 @@ class CNN():
                 chunk_losses.append(loss)
             loss = np.sum(chunk_losses)
         self.writer.add_summary(result, i_t)
-        #self.write_weights_hist(i=i) ##??
 
         return loss, result
 

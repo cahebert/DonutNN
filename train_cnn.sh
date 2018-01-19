@@ -15,7 +15,6 @@ module load tensorflow
 basedir=/home/chebert/DonutNN/
 scratchdir=/scratch/users/chebert
 
-##deconv=1
 ##restore=None
 learningrate=.001
 iters=5000

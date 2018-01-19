@@ -10,7 +10,6 @@ def parse_args():
                                      'structure/chemical mapping data as a function of seq')
     parser.add_argument('-f', '--filename', help='name of input file')
     parser.add_argument('-resdir', '--resultdir', help='location of results')
-#    parser.add_argument('-d', '--deconv',default=0, type=int,help = 'deconv layers')
     parser.add_argument('-arch', '--architecture', type=str, help='architecture of the model')
     parser.add_argument('-r', '--restore', default=None, help='restore model parameters')
     parser.add_argument('-lr', '--learningrate', type=float,default=1e-4, help='learning rate')
@@ -36,72 +35,32 @@ def parse_architecture_string(layers):
     return layers
 
 args = parse_args()
-#deconv = bool(args.deconv)
+#CNN architecture
 layers = parse_architecture_string(args.architecture)
+#restore parameters?
 restore = args.restore
+#learning rate
 learning_rate = args.learningrate
+#data filename
 filename = args.filename
+#training iterations
 iters = args.iters
+#how many examples to test at the end
 Ntest = 100
+#batch size for each training set
 batch_size = 50
+#using one or two input images per example
 inputs=args.inputs
+#save parameters and outputs?
 save = bool(args.save)
+#what activation function to use for the last layer (recommend none)
 activation = args.activation
+#where to save results
 results_dir = args.resultdir
+#use a mask (annulus) when calculating L2 distance btw images
 mask = bool(args.mask)
-# set kernel parameters (size)
-#if not deconv:
-#    layers = [ ([6, 6, 1, 96],1,'c'), \
-#             ([6, 6, 96, 96],1,'c'), \
-#             ([6, 6, 96, 96],1,'c'), \
-#             ([6, 6, 96, 96],1,'c'), \
-#             ([6, 6, 96, 96],1,'c'), \
-#             ([6, 6, 96, 96],1,'c'), \
-#             ([6, 6, 96, 96],1,'c'), \
-#             ([6, 6, 96, 96],1,'c'), \
-#             ([6, 6, 96, 96],1,'c'), \
-#             ([6, 6, 96, 96],1,'c'), \
-#             ([6, 6, 96, 96],1,'c'), \
-#             ([6, 6, 96, 48],1,'c'), \
-#             ([3, 3, 48, 1],1,'c') ]
-#
-##    w_shapes = [ [3, 3, 1, 96], \
-#             [12, 12, 96, 192], \
-#             [12, 12, 192, 192], \
-#             [12, 12, 192, 96], \
-#             [12, 12, 96, 48], \
-#             [3, 3, 48, 1] ]
-#
-#    b_shapes = [ [96], \
-#             [192], \
-#             [192], \
-#             [96], \
-#             [48], \
-#             [1] ]
-#else:
-#    layers = [ ([4, 4, 1, 96], 2, 'c'), \
-#             ([3, 3, 96, 96], 1, 'c'), \
-#             ([4, 4, 96, 96], 2, 'c'),\
-#             ([4, 4, 96, 96], 1, 'd'),\
-#             ([4, 4, 96, 96], 1, 'd'),\
-#             ([4, 4, 96, 48], 2, 'd'),\
-#             ([3, 3, 48, 1], 1, 'c')]
-#
-#    w_shapes = [ [6, 6, 1, 96], \
-#             [3, 3, 96, 96], \
-#             [6, 6, 96, 192], \
-#             [4, 4, 192, 192], \
-#             [6, 6, 96, 192], \
-#             [4, 4, 48, 96], \
-#             [3, 3, 48, 1] ]
-#
-#    b_shapes = [ [96], \
-#             [96], \
-#             [192], \
-#             [192], \
-#             [96], \
-#             [48], \
-#             [1] ]
+
+
 
 def main():
       print 'reading data...'
