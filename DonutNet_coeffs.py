@@ -10,26 +10,20 @@ def parse_args():
                                      'structure/chemical mapping data as a function of seq')
     parser.add_argument('-f', '--filename', help='name of input file')
     parser.add_argument('-resdir', '--resultdir', help='location of results')
-    parser.add_argument('-d', '--deconv', default=True, type=bool,help = 'deconv layers')
-    parser.add_argument('-r', '--restore', default=None, help='restore model parameters')
-    parser.add_argument('-lr', '--learningrate', type=float,default=1e-4, help='learning rate')
-    parser.add_argument('-i', '--iters', default=10000, type=int, help='iterations')
-    parser.add_argument('-s','--save', default=False, type=bool,help='save parameters')
-    parser.add_argument('-a','--activation',default=None,type=str)
     return parser.parse_args()
 
 
 args = parse_args()
 
-deconv = args.deconv
-restore = args.restore
-learning_rate = args.learningrate
+deconv = True
+restore = None #'results/simulatedData_6layer_1.00e-04_hnqyzj_testerr428.479568-10000'
+learning_rate = 1e-4
 filename = args.filename
-iters = args.iters
+iters = 10000
 Ntest = 100
 batch_size = 50
-save = args.save
-activation = args.activation
+save = True
+
 results_dir = args.resultdir
 
 # set kernel parameters (size)
@@ -76,36 +70,20 @@ if not deconv:
 #             [1] ]
 else:
     w_shapes = [ [6, 6, 1, 96], \
-             [3, 3, 192, 96], \
-             [6, 6, 192, 96], \
-             [4, 4, 96, 192], \
+             [3, 3, 96, 96], \
              [6, 6, 96, 192], \
-             [4, 4, 48, 192], \
-             [3, 3, 96, 1] ]
+             [4, 4, 192, 192], \
+             [6, 6, 96, 192], \
+             [4, 4, 48, 96], \
+             [3, 3, 48, 1] ]
 
     b_shapes = [ [96], \
              [96], \
-             [96], \
-             [96], \
+             [192], \
+             [192], \
              [96], \
              [48], \
              [1] ]
-
-#    w_shapes = [ [6, 6, 1, 96], \
-#             [3, 3, 96, 96], \
-#             [6, 6, 96, 192], \
-#             [4, 4, 192, 192], \
-#             [6, 6, 96, 192], \
-#             [4, 4, 48, 96], \
-#             [3, 3, 48, 1] ]
-#
-#    b_shapes = [ [96], \
-#             [96], \
-#             [192], \
-#             [192], \
-#             [96], \
-#             [48], \
-#             [1] ]
 
 def main():
       print 'reading data...'
@@ -118,7 +96,7 @@ def main():
           name = '%s_conv_%dlayer_%.2e' % (os.path.splitext(os.path.basename(filename))[0],len(b_shapes), learning_rate)
       else:
           name = '%s_deconv_%dlayer_%.2e' % (os.path.splitext(os.path.basename(filename))[0],len(b_shapes), learning_rate)
-      model = CNN(w_shapes, b_shapes, name, learning_rate,deconv,batch_size,activation)
+      model = CNN(w_shapes, b_shapes, name, learning_rate,deconv,batch_size)
 
       if restore is not None:
             print 'restoring model parameters from file...'

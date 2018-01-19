@@ -1,1 +1,3 @@
 Use simulated donut images of optics aberration to generate polynomial wavefront images
+
+util_DonutNN.py holds the CNN class and functions, DonutNet.py sets up a particular instance and trains the model. 
