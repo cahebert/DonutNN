@@ -94,7 +94,7 @@ def setup_layers(x_input, layers):
     return weights, layers_out
 
 class CNN():
-    def __init__(self, layers, name='', learning_rate=1e-4, batch_size=100, mask=True, inputs=2):
+    def __init__(self, layers, name='', learning_rate=5e-4, batch_size=100, mask=True, inputs=2):
         self.name = name + '_' + ''.join(random.choice(string.ascii_lowercase) for _ in range(6))
 
         self.sess = tf.Session()
@@ -137,24 +137,28 @@ class CNN():
 
         self.loss = tf.nn.l2_loss( diff )
         self.train_summ = tf.summary.scalar("L2 loss", self.loss)
+        
+        gradients = tf.train.AdamOptimizer(learning_rate).compute_gradients(self.loss)
+        grads, varbs = zip(*gradients)
+        ##if need to clip gradients, use following:
+        #self.gradients, _ = tf.clip_by_global_norm(grads, 1e6)
+        #self.train_step = tf.train.AdamOptimizer(learning_rate).apply_gradients(zip(self.gradients,varbs))
         self.train_step = tf.train.AdamOptimizer(learning_rate).minimize(self.loss)
 
 
-    def train(self, data, iters=10000, batch_size=100, test=False,inputs=2):
+    def train(self, data, iters, batch_size, inputs):
         if inputs==2:
             all_donuts_x = data['psf']
             all_donuts_i = data['intra_psf']
-            all_wf = data['wavefront']
 
             all_donuts_x = np.vstack([np.expand_dims(x, 0) for x in all_donuts_x.values])
             all_donuts_i = np.vstack([np.expand_dims(x, 0) for x in all_donuts_i.values])
             all_donuts = np.stack((all_donuts_x,all_donuts_i),axis=-1)
-            print np.shape(all_donuts)        
         else:
             all_donuts = data['psf']
             all_donuts = np.vstack([np.expand_dims(x, 0) for x in all_donuts.values])
             all_donuts = np.expand_dims(all_donuts,-1)
-
+        all_wf = data['wavefront']
         all_wf = np.vstack([np.expand_dims(x, 0) for x in all_wf.values])
         all_wf = np.expand_dims(all_wf,-1) 
 
@@ -163,17 +167,14 @@ class CNN():
 
         for i in range(iters):
             batch_idx = np.random.choice(np.shape(all_donuts)[0], batch_size)
-            
             if i % period == 0:
                 loss[0,i/period], _ = self.get_loss(all_donuts,all_wf, i)
                 print 'step %d: loss %g' % (i, loss[0, i/period])
-                print 'min value of wf: ', np.min(self.wavefront_pred.eval(session=self.sess,feed_dict={self.donut: all_donuts[i:i+1]}))
-            self.sess.run([self.train_step], feed_dict={self.donut: all_donuts[batch_idx], \
-                                                                self.wf_truth: all_wf[batch_idx]})
+            self.sess.run([self.train_step], feed_dict={self.donut: all_donuts[batch_idx], self.wf_truth: all_wf[batch_idx]})
             self.i += 1
         return loss
 
-    def get_loss(self, donut, wf, i_t, max_chunk=50):
+    def get_loss(self, donut, wf, i_t, max_chunk=25):
         fetches = [self.loss, self.train_summ]
         if donut.shape[0] < max_chunk:
             result = self.sess.run(fetches, feed_dict={self.donut: donut, self.wf_truth: wf})
@@ -216,4 +217,28 @@ class CNN():
     def __del__(self):
         self.writer.close()
 
-    
+    def test_df(self,dataframe,inputs=2):
+        N = len(dataframe)
+        #test predictions from a dataframe
+        if inputs == 2:
+            all_donuts_x = np.vstack([np.expand_dims(x, 0) for x in dataframe['psf'].values])
+            all_donuts_i = np.vstack([np.expand_dims(x, 0) for x in dataframe['intra_psf'].values])
+            testDonut = np.stack((all_donuts_x,all_donuts_i),axis=-1)
+        else:
+            donuts = np.vstack([np.expand_dims(x, 0) for x in dataframe['psf'].values])
+            testDonut = np.expand_dims(donuts,-1)
+
+        wf_pred = np.reshape(self.test(testDonut).flatten(),[-1,64,64])
+        wf_true = np.array([wf for wf in dataframe['wavefront'].values])
+        ## prediction error
+        test_err = np.sum(np.square(wf_true - wf_pred))/N  
+        
+        ## would really love to find a better way of appending these predictions to my df.
+        dfList = []
+        for i in range(N):
+            df = pd.DataFrame(columns = ['wavefront_pred'])
+            dfList.append( df.append({'wavefront_pred':wf_pred[i]},ignore_index=True) )
+        df_predictions = pd.concat(dfList, ignore_index=True)
+        dataframe['wavefront_pred'] = df_predictions.values
+
+        return dataframe, test_err
